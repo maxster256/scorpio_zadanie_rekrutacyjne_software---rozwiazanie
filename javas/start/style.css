@@ -20,8 +20,32 @@ td{
     font-weight: bold;
     background-color: rgb(206, 97, 36);
 }
+.motors_header{
+    font-weight: bold;
+    background-color: rgb(206, 97, 36);
+}
+.single_motor{
+    height: 200px;
+}
 #controllbl{
     color: green;
+}
+.dot{
+    height: 25px;
+    width: 25px;
+    background-color: rgb(206, 97, 36);
+    border-radius: 50%;
+    position: relative;
+    display: inline-block;
+}
+.line{
+    height: 80px;
+    width: 2px;
+    bottom: 50%;
+    position: absolute;
+    background-color: rgb(206, 97, 36);
+    display: inline-block;
+    transform: translateX(-50%);
 }
 
 
