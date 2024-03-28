@@ -25,7 +25,7 @@ td{
     background-color: rgb(206, 97, 36);
 }
 .single_motor{
-    height: 200px;
+    height: 250px;
 }
 #controllbl{
     color: green;
@@ -39,7 +39,6 @@ td{
     display: inline-block;
 }
 .line{
-    height: 80px;
     width: 2px;
     bottom: 50%;
     position: absolute;
