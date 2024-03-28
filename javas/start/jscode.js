@@ -1,5 +1,6 @@
-//-------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------
 // fragment kodu zwiazany z sama strona
+
 
 let table_content = [
     ["Motor", "Left Control", "Right Control", "Control Signal Value", "Position"],
@@ -10,7 +11,8 @@ let table_content = [
 
 let visual_table = [
     ["Motor 1", "Motor 2", "Motor 3"],
-    ["visual", "visual", "visual"]
+    ["visual", "visual", "visual"],
+    ["joint", "joint", "joint"]
 ]
 
 let buttons = [
@@ -30,6 +32,7 @@ let is_enabled = true;
 
 let line_rotation = [0, 100, 0];
 let position_rotations = [50, 50, 50];
+let joints_lengths;
 
 //petla do zbudowania tabeli z kontrolerami
 let grid = document.getElementById("grid");
@@ -47,6 +50,7 @@ for (let i = 0; i < rows_number; i++){
             let btn = document.createElement("button");
             btn.textContent = buttons[i-1][j-1];
             btn.addEventListener("click", function(){
+                // odczyt z przyciskow na stronie
                 findButtonOrKey(buttons[i-1][j-1]);
             })
             cell.appendChild(btn);
@@ -76,7 +80,8 @@ let visual_grid = document.getElementById("visual_grid");
 for (let i = 0; i < motors_table_length; i++){
 
     if(i == 0)  {class_name = "motors_header";}
-    else        {class_name = "single_motor";}
+    else if (i == 1) {class_name = "single_motor"}
+    else        {class_name = "joints";}
 
     let row = document.getElementsByClassName(class_name)[0];
 
@@ -98,6 +103,7 @@ for (let i = 0; i < motors_table_length; i++){
     visual_grid.append(row);
 }
 
+// ustawienie wartosci w "motor control" w zaleznosci od jego obecnego stanu
 document.getElementById("controlbtn").addEventListener("click", function(){
     var label = document.getElementById("controllbl");
     if(is_enabled){
@@ -112,32 +118,33 @@ document.getElementById("controlbtn").addEventListener("click", function(){
     }
 });
 
+// odczyt przyciskow z klawiatury
 document.addEventListener("keypress", function(){
     findButtonOrKey(event.key);
 });
 
+// sposob wywolywania publishera zalezny od wcisnietego przycisku
 function findButtonOrKey(btn){
     if(is_enabled){
+        let direction;
+        let node;
         switch(btn){
-            case "q":
-                topicPublisher('/virtual_dc_motor_node/set_cs_0', (-1) * position_rotations[0]); break;
-            case "e":
-                topicPublisher('/virtual_dc_motor_node/set_cs_0', position_rotations[0]);        break;
-            case "a":
-                topicPublisher('/virtual_dc_motor_node/set_cs_1', (-1) * position_rotations[1]); break;
-            case "d":
-                topicPublisher('/virtual_dc_motor_node/set_cs_1', position_rotations[1]);        break;
-            case "z":
-                topicPublisher('/virtual_dc_motor_node/set_cs_2', (-1) * position_rotations[2]); break;
-            case "c":
-                topicPublisher('/virtual_dc_motor_node/set_cs_2', position_rotations[2]);        break;
+            case "q": direction = -1; node = 0; break;
+            case "e": direction = 1; node = 0; break;
+            case "a": direction = -1; node = 1; break;
+            case "d": direction = 1; node = 1; break;
+            case "z": direction = -1; node = 2; break;
+            case "c": direction = 1; node = 2; break;
             default: break;
         }
+        topicPublisher(`/virtual_dc_motor_node/set_cs_${node}`, direction * position_rotations[node]);
     }
 }
 
-//-------------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------------------
 // fragment kodu zwiazany z komunikacja z ros
+
 
 var ros = new ROSLIB.Ros({
     url : 'ws://localhost:9090'
@@ -165,6 +172,7 @@ function updateTable(i, data){
     grid.rows[i].cells[position_column].textContent = `${degrees.toFixed(2)}°`
 }
 
+// subskrybowanie danych z topica
 function topicListener(topic, row) {
     var listener = new ROSLIB.Topic({
         ros: ros,
@@ -181,6 +189,7 @@ topicListener('/virtual_dc_motor_node/get_position_0', 1);
 topicListener('/virtual_dc_motor_node/get_position_1', 2);
 topicListener('/virtual_dc_motor_node/get_position_2', 3);
 
+// publikowanie danych na topic
 function topicPublisher(topic, rotat){
     var publisher = new ROSLIB.Topic({
         ros : ros,
@@ -193,3 +202,22 @@ function topicPublisher(topic, rotat){
     });
     publisher.publish(cs);
 }
+
+// pozyskanie danych od serwisu
+function getServiceData(){
+    var jointsLengthsClient = new ROSLIB.Service({
+        ros : ros,
+        name : '/virtual_dc_motor_node/get_joints_length',
+        serviceType : 'virtual_dc_motor/getMotorJointsLengths'
+    });
+
+    jointsLengthsClient.callService(null, function(result) {
+        joints_lengths = result.data;
+        for(let i = 0; i < joints_lengths.length; i++){
+            visual_grid.rows[2].cells[i].textContent = `Length of the joint: ${joints_lengths[i]}`;
+            let motor = visual_grid.rows[1].cells[i].querySelector('.dot').querySelector('.line');
+            motor.style.height = `${joints_lengths[i]/2}px`;
+        }
+    });
+}
+getServiceData();
