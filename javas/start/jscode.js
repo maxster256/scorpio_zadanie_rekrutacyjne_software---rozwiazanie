@@ -23,6 +23,7 @@ let buttons = [
 
 let motor_system = [
     "Motor System Visualization",
+    "button",
     "visual"
 ]
 
@@ -86,11 +87,13 @@ for (let i = 0; i < rows_number; i++){
 let system_grid = document.getElementById("motor_system");
 for (let i = 0; i < motor_system_length; i++){
     if(i == 0) {class_name = "system_header";}
+    else if (i == 1){class_name = "zero_button";}
     else       {class_name = "system_visual";}
     let row = document.getElementsByClassName(class_name)[0];
     
     let cell = document.createElement("td");
 
+    //stworzenie komorki z wizualizacja calego systemu
     if(motor_system[i] == "visual"){
         for(let j = 0; j < 3; j++){
             let dot = document.createElement("div");
@@ -114,6 +117,34 @@ for (let i = 0; i < motor_system_length; i++){
                 previous_dot.append(dot);
             }
         }
+    }
+    //stworzenie komorki z przyciskiem
+    else if(motor_system[i] == "button"){
+        let btn = document.createElement("button");
+        btn.textContent = "Go to zero";
+        btn.addEventListener("click",function(){
+            //asynchroniczne zerowanie wszystkich pozycji
+            const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
+            const setMotorsToZero = async (j) => {
+                while(line_rotation[j] != 0){
+                    let direction = 1;
+                    if (line_rotation[j] < 180) {direction = -1;}
+                    // sinusoidalny parametr (dla kata 180* przyjmuje wartosc maksymalna a dla 0* i 360* minimalna)
+                    let sin_parameter = line_rotation[j] * Math.PI / 360;
+                    // x - predkosc obracania zalezna od parametru sinusoidalnego
+                    let x = parseInt(Math.sin(sin_parameter) * 80 + 13);
+                    topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, direction * x);
+                    // im blizej 0* znajdzie sie ramie z tym wieksza czestotliwoscia bedzie regulowana jego predkosc obrotu (w celu trafienia 0)
+                    await sleep((3*x)+5);
+                }
+                // wyzerowanie predkosci obrotu, po osiagnieciu kata 0*
+                topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, 0);
+            }
+            for(let i = 0; i < motors_number; i++){
+                setMotorsToZero(i);
+            }
+        });
+        cell.append(btn);
     }
     else    {cell.textContent = motor_system[i];}
 
@@ -215,7 +246,7 @@ function updateTable(i, data){
     let arm = dot.querySelector('.line');
     arm.style.transform = `rotate(${line_rotation[i-1]}deg)`;
 
-    let system = system_grid.rows[1].cells[0]
+    let system = system_grid.rows[2].cells[0]
     for(let j = 0; j < motors_number; j++){
         system = system.querySelector('.dot');
         system.querySelector('.line').style.transform = `rotate(${line_rotation[j]}deg)`;
@@ -272,7 +303,7 @@ function getServiceData(){
             motor.style.height = `${joints_lengths[i]/2}px`;
         }
         // ustawienie dlugosci ramion (oraz skorygowanie pozycji silnikow) w zaleznosci od danych z serwisu
-        let system = system_grid.rows[1].cells[0];
+        let system = system_grid.rows[2].cells[0];
         for(let j = 0; j < motors_number; j++){
             system = system.querySelector('.dot');
             system.querySelector('.line').style.height = `${joints_lengths[j]/2}px`;
