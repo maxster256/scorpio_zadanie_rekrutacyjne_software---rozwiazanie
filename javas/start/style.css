@@ -24,8 +24,15 @@ td{
     font-weight: bold;
     background-color: rgb(206, 97, 36);
 }
+.system_header{
+    font-weight: bold;
+    background-color: rgb(206, 97, 36);
+}
 .single_motor{
     height: 250px;
+}
+.system_visual{
+    height: 600px;
 }
 #controllbl{
     color: green;
