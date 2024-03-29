@@ -21,16 +21,23 @@ let buttons = [
     ["z", "c"]
 ]
 
+let motor_system = [
+    "Motor System Visualization",
+    "visual"
+]
+
 const rows_number = table_content.length;
 const columns_number = table_content[0].length;
 
 const motors_number = visual_table[0].length;
 const motors_table_length = visual_table.length;
 
+const motor_system_length = motor_system.length;
+
 let class_name;
 let is_enabled = true;
 
-let line_rotation = [0, 100, 0];
+let line_rotation = [0, 0, 0];
 let position_rotations = [50, 50, 50];
 let joints_lengths;
 
@@ -73,6 +80,45 @@ for (let i = 0; i < rows_number; i++){
         row.appendChild(cell);
     }
     grid.appendChild(row);
+}
+
+//petla do zbudowania tabeli z calym systemem
+let system_grid = document.getElementById("motor_system");
+for (let i = 0; i < motor_system_length; i++){
+    if(i == 0) {class_name = "system_header";}
+    else       {class_name = "system_visual";}
+    let row = document.getElementsByClassName(class_name)[0];
+    
+    let cell = document.createElement("td");
+
+    if(motor_system[i] == "visual"){
+        for(let j = 0; j < 3; j++){
+            let dot = document.createElement("div");
+            dot.setAttribute("class", "dot");
+            dot.id = String(j);
+            let line = document.createElement("div");
+            line.setAttribute("class", "line");
+            line.style.transformOrigin = 'bottom center';
+            dot.append(line);
+            if(j == 0){
+                cell.append(dot);
+            }
+            else{
+                let previous_dot = cell.querySelector('.dot');
+                while(previous_dot.querySelector('.dot') != null){
+                    previous_dot = previous_dot.querySelector('.dot');
+                }
+                previous_dot = previous_dot.querySelector('.line');
+                dot.style.position = "absolute";
+                dot.style.transform = "translateX(-50%)";
+                previous_dot.append(dot);
+            }
+        }
+    }
+    else    {cell.textContent = motor_system[i];}
+
+    row.append(cell);
+    system_grid.append(row);
 }
 
 // petla do zbudowania tabeli z pojedynczymi silnikami
@@ -169,6 +215,12 @@ function updateTable(i, data){
     let arm = dot.querySelector('.line');
     arm.style.transform = `rotate(${line_rotation[i-1]}deg)`;
 
+    let system = system_grid.rows[1].cells[0]
+    for(let j = 0; j < motors_number; j++){
+        system = system.querySelector('.dot');
+        system.querySelector('.line').style.transform = `rotate(${line_rotation[j]}deg)`;
+    }
+
     grid.rows[i].cells[position_column].textContent = `${degrees.toFixed(2)}°`
 }
 
@@ -213,10 +265,18 @@ function getServiceData(){
 
     jointsLengthsClient.callService(null, function(result) {
         joints_lengths = result.data;
+        // ustawienie dlugosci ramion w zaleznosci od danych z serwisu
         for(let i = 0; i < joints_lengths.length; i++){
             visual_grid.rows[2].cells[i].textContent = `Length of the joint: ${joints_lengths[i]}`;
             let motor = visual_grid.rows[1].cells[i].querySelector('.dot').querySelector('.line');
             motor.style.height = `${joints_lengths[i]/2}px`;
+        }
+        // ustawienie dlugosci ramion (oraz skorygowanie pozycji silnikow) w zaleznosci od danych z serwisu
+        let system = system_grid.rows[1].cells[0];
+        for(let j = 0; j < motors_number; j++){
+            system = system.querySelector('.dot');
+            system.querySelector('.line').style.height = `${joints_lengths[j]/2}px`;
+            system.style.bottom = `${joints_lengths[j-1]/2 - 12.5}px`;
         }
     });
 }
