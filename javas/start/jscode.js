@@ -2,7 +2,7 @@
 // fragment kodu zwiazany z sama strona
 
 
-let table_content = [
+let controls_table = [
     ["Motor", "Left Control", "Right Control", "Control Signal Value", "Position"],
     ["Motor 1", "ctrl", "ctrl", "slider", "pos"],
     ["Motor 2", "ctrl", "ctrl", "slider", "pos"],
@@ -22,18 +22,14 @@ let buttons = [
 ]
 
 let motor_system = [
-    "Motor System Visualization",
-    "button",
-    "visual"
+    ["Motor System Visualization"],
+    ["button"],
+    ["system"]
 ]
 
-const rows_number = table_content.length;
-const columns_number = table_content[0].length;
-
+const motor_controls_columns = controls_table[0].length;
 const motors_number = visual_table[0].length;
-const motors_table_length = visual_table.length;
-
-const motor_system_length = motor_system.length;
+const motor_system_columns = motor_system[0].length;
 
 let class_name;
 let is_enabled = true;
@@ -42,143 +38,118 @@ let line_rotation = [0, 0, 0];
 let position_rotations = [50, 50, 50];
 let joints_lengths;
 
-//petla do zbudowania tabeli z kontrolerami
-let grid = document.getElementById("grid");
-for (let i = 0; i < rows_number; i++){
+// jedna funkcja do tworzenia wszystkich tabel (zgodnie z regula DRY)
+function createTable(tableID, columns, table_of_strings){
+    let table = document.getElementById(tableID);
 
-    if(i == 0)  {class_name = "header";}
-    else        {class_name = "content";}
+    let table_rows = table.children[0].childElementCount;
+    for(let i = 0; i < table_rows; i++){
+        
+        let row = table.children[0].children[0];
+        
+        for(let j = 0; j < columns; j++){
+            let cell = document.createElement("td");
 
-    let row = grid.getElementsByClassName(class_name)[0];
-
-    for (let j = 0; j < columns_number; j++){
-        let cell = document.createElement("td");
-        // stworzenie komorek z przyciskami kontrolujacymi
-        if(table_content[i][j] == "ctrl"){ 
-            let btn = document.createElement("button");
-            btn.textContent = buttons[i-1][j-1];
-            btn.addEventListener("click", function(){
-                // odczyt z przyciskow na stronie
-                findButtonOrKey(buttons[i-1][j-1]);
-            })
-            cell.appendChild(btn);
-        }
-        // stworzenie komorek z suwakami
-        else if(table_content[i][j] == "slider"){
-            cell.style.fontSize = "11px";
-            let slider = document.createElement("input");
-            slider.type = "range";
-            slider.value = 50;
-            cell.append(slider, "\n", slider.value);
-            slider.addEventListener("input", function(){
-                cell.textContent = "";
+            // stworzenie komorek z przyciskami kontrolujacymi
+            if(table_of_strings[i][j] == "ctrl"){ 
+                let btn = document.createElement("button");
+                btn.textContent = buttons[i-1][j-1];
+                btn.addEventListener("click", function(){
+                    // odczyt z przyciskow na stronie
+                    findButtonOrKey(buttons[i-1][j-1]);
+                })
+                cell.appendChild(btn);
+            }
+            
+            // stworzenie komorek z suwakami
+            else if(table_of_strings[i][j] == "slider"){
+                cell.style.fontSize = "11px";
+                let slider = document.createElement("input");
+                slider.type = "range";
+                slider.value = 50;
                 cell.append(slider, "\n", slider.value);
-                position_rotations[i-1] = Number(slider.value);
-            })
-        }
-        // stworzenie pozostalych komorek
-        else    {cell.textContent = table_content[i][j];}
-        row.appendChild(cell);
-    }
-    grid.appendChild(row);
-}
+                slider.addEventListener("input", function(){
+                    cell.textContent = "";
+                    cell.append(slider, "\n", slider.value);
+                    position_rotations[i-1] = Number(slider.value);
+                })
+            }
 
-//petla do zbudowania tabeli z calym systemem
-let system_grid = document.getElementById("motor_system");
-for (let i = 0; i < motor_system_length; i++){
-    if(i == 0) {class_name = "header";}
-    else if (i == 1){class_name = "zero_button";}
-    else       {class_name = "system_visual";}
-    let row = system_grid.getElementsByClassName(class_name)[0];
-    
-    let cell = document.createElement("td");
+            //stworzenie komorki z wizualizacja calego systemu
+            else if(table_of_strings[i][j] == "system"){
+                for(let k = 0; k < motors_number; k++){
+                    let dot = document.createElement("div");
+                    dot.setAttribute("class", "dot");
+                    dot.id = String(k);
+                    let line = document.createElement("div");
+                    line.setAttribute("class", "line");
+                    line.style.transformOrigin = 'bottom center';
+                    dot.append(line);
+                    if(k == 0)  {cell.append(dot);}
+                    else{
+                        let previous_dot = cell.querySelector('.dot');
+                        while(previous_dot.querySelector('.dot') != null){
+                            previous_dot = previous_dot.querySelector('.dot');
+                        }
+                        previous_dot = previous_dot.querySelector('.line');
+                        dot.style.position = "absolute";
+                        dot.style.transform = "translateX(-50%)";
+                        previous_dot.append(dot);
+                    }
+                }
+            }
+            
+            //stworzenie komorki z przyciskiem zerujacym
+            else if(table_of_strings[i][j] == "button"){
+                let btn = document.createElement("button");
+                btn.textContent = "Go to zero";
+                btn.addEventListener("click",function(){
+                    //asynchroniczne zerowanie wszystkich pozycji
+                    const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
+                    const setMotorsToZero = async (j) => {
+                        while(line_rotation[j] != 0){
+                            let direction = 1;
+                            if (line_rotation[j] < 180) {direction = -1;}
+                            // sinusoidalny parametr (dla kata 180* przyjmuje wartosc maksymalna a dla 0* i 360* minimalna)
+                            let sin_parameter = line_rotation[j] * Math.PI / 360;
+                            // x - predkosc obracania zalezna od parametru sinusoidalnego
+                            let x = parseInt(Math.sin(sin_parameter) * 80 + 13);
+                            topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, direction * x);
+                            // im blizej 0* znajdzie sie ramie z tym wieksza czestotliwoscia bedzie regulowana jego predkosc obrotu (w celu trafienia 0)
+                            await sleep((3*x)+5);
+                        }
+                        // wyzerowanie predkosci obrotu, po osiagnieciu kata 0*
+                        topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, 0);
+                    }
+                    for(let i = 0; i < motors_number; i++){
+                        setMotorsToZero(i);
+                    }
+                });
+                cell.append(btn);
+            }
 
-    //stworzenie komorki z wizualizacja calego systemu
-    if(motor_system[i] == "visual"){
-        for(let j = 0; j < 3; j++){
-            let dot = document.createElement("div");
-            dot.setAttribute("class", "dot");
-            dot.id = String(j);
-            let line = document.createElement("div");
-            line.setAttribute("class", "line");
-            line.style.transformOrigin = 'bottom center';
-            dot.append(line);
-            if(j == 0){
+            // stworzenie komorek z pojedynczymi silnikami
+            else if(table_of_strings[i][j] == "visual"){
+                let dot = document.createElement("div");
+                dot.setAttribute("class", "dot");
+                let line = document.createElement("div");
+                line.setAttribute("class", "line");
+                line.style.transformOrigin = 'bottom center';
+                dot.append(line);
                 cell.append(dot);
             }
-            else{
-                let previous_dot = cell.querySelector('.dot');
-                while(previous_dot.querySelector('.dot') != null){
-                    previous_dot = previous_dot.querySelector('.dot');
-                }
-                previous_dot = previous_dot.querySelector('.line');
-                dot.style.position = "absolute";
-                dot.style.transform = "translateX(-50%)";
-                previous_dot.append(dot);
-            }
+            else    {cell.textContent = table_of_strings[i][j];}
+            row.append(cell);
         }
+        table.append(row);
     }
-    //stworzenie komorki z przyciskiem
-    else if(motor_system[i] == "button"){
-        let btn = document.createElement("button");
-        btn.textContent = "Go to zero";
-        btn.addEventListener("click",function(){
-            //asynchroniczne zerowanie wszystkich pozycji
-            const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
-            const setMotorsToZero = async (j) => {
-                while(line_rotation[j] != 0){
-                    let direction = 1;
-                    if (line_rotation[j] < 180) {direction = -1;}
-                    // sinusoidalny parametr (dla kata 180* przyjmuje wartosc maksymalna a dla 0* i 360* minimalna)
-                    let sin_parameter = line_rotation[j] * Math.PI / 360;
-                    // x - predkosc obracania zalezna od parametru sinusoidalnego
-                    let x = parseInt(Math.sin(sin_parameter) * 80 + 13);
-                    topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, direction * x);
-                    // im blizej 0* znajdzie sie ramie z tym wieksza czestotliwoscia bedzie regulowana jego predkosc obrotu (w celu trafienia 0)
-                    await sleep((3*x)+5);
-                }
-                // wyzerowanie predkosci obrotu, po osiagnieciu kata 0*
-                topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, 0);
-            }
-            for(let i = 0; i < motors_number; i++){
-                setMotorsToZero(i);
-            }
-        });
-        cell.append(btn);
-    }
-    else    {cell.textContent = motor_system[i];}
-
-    row.append(cell);
-    system_grid.append(row);
+    return table;
 }
 
-// petla do zbudowania tabeli z pojedynczymi silnikami
-let visual_grid = document.getElementById("visual_grid");
-for (let i = 0; i < motors_table_length; i++){
-
-    if(i == 0)  {class_name = "header";}
-    else if (i == 1) {class_name = "single_motor"}
-    else        {class_name = "joints";}
-
-    let row = visual_grid.getElementsByClassName(class_name)[0];
-
-    for (let j = 0; j < motors_number; j++){
-        let cell = document.createElement("td");
-        // stworzenie komorek z pojedynczymi silnikami
-        if(visual_table[i][j] == "visual"){
-            let dot = document.createElement("div");
-            dot.setAttribute("class", "dot");
-            let line = document.createElement("div");
-            line.setAttribute("class", "line");
-            line.style.transformOrigin = 'bottom center';
-            dot.append(line);
-            cell.append(dot);
-        }
-        else    {cell.textContent = visual_table[i][j];}
-        row.append(cell);
-    }
-    visual_grid.append(row);
-}
+// stworzenie poszczegolnych tabel
+let grid = createTable("grid", motor_controls_columns, controls_table);
+let system_grid = createTable("motor_system", motor_system_columns, motor_system);
+let visual_grid = createTable("visual_grid", motors_number, visual_table);
 
 // ustawienie wartosci w "motor control" w zaleznosci od jego obecnego stanu
 document.getElementById("controlbtn").addEventListener("click", function(){
@@ -218,9 +189,9 @@ function findButtonOrKey(btn){
     }
 }
 
-
 //------------------------------------------------------------------------------------------
 // fragment kodu zwiazany z komunikacja z ros
+// i aktualizowaniem danych w tabeli w oparciu o dane pozyskane z ros
 
 
 var ros = new ROSLIB.Ros({
@@ -236,9 +207,9 @@ ros.on('close', function() {
     console.log('Connection to websocket server closed.');
 });
 
-let position_column = table_content[0].length - 1;
+let position_column = controls_table[0].length - 1;
 
-function updateTable(i, data){
+function updateTableAndMotors(i, data){
     degrees = Number(data)*360/4096;
     line_rotation[i-1] = degrees;
 
@@ -251,7 +222,6 @@ function updateTable(i, data){
         system = system.querySelector('.dot');
         system.querySelector('.line').style.transform = `rotate(${line_rotation[j]}deg)`;
     }
-
     grid.rows[i].cells[position_column].textContent = `${degrees.toFixed(2)}°`
 }
 
@@ -264,7 +234,7 @@ function topicListener(topic, row) {
     });
 
     listener.subscribe(function(message) {
-        updateTable(row, message.data);
+        updateTableAndMotors(row, message.data);
     });
 }
 
