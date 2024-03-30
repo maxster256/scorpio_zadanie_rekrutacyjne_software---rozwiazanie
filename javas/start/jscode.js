@@ -49,7 +49,7 @@ for (let i = 0; i < rows_number; i++){
     if(i == 0)  {class_name = "header";}
     else        {class_name = "content";}
 
-    let row = document.getElementsByClassName(class_name)[0];
+    let row = grid.getElementsByClassName(class_name)[0];
 
     for (let j = 0; j < columns_number; j++){
         let cell = document.createElement("td");
@@ -86,10 +86,10 @@ for (let i = 0; i < rows_number; i++){
 //petla do zbudowania tabeli z calym systemem
 let system_grid = document.getElementById("motor_system");
 for (let i = 0; i < motor_system_length; i++){
-    if(i == 0) {class_name = "system_header";}
+    if(i == 0) {class_name = "header";}
     else if (i == 1){class_name = "zero_button";}
     else       {class_name = "system_visual";}
-    let row = document.getElementsByClassName(class_name)[0];
+    let row = system_grid.getElementsByClassName(class_name)[0];
     
     let cell = document.createElement("td");
 
@@ -156,11 +156,11 @@ for (let i = 0; i < motor_system_length; i++){
 let visual_grid = document.getElementById("visual_grid");
 for (let i = 0; i < motors_table_length; i++){
 
-    if(i == 0)  {class_name = "motors_header";}
+    if(i == 0)  {class_name = "header";}
     else if (i == 1) {class_name = "single_motor"}
     else        {class_name = "joints";}
 
-    let row = document.getElementsByClassName(class_name)[0];
+    let row = visual_grid.getElementsByClassName(class_name)[0];
 
     for (let j = 0; j < motors_number; j++){
         let cell = document.createElement("td");
