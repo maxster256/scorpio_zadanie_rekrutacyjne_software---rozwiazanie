@@ -11,16 +11,15 @@ let controls_table = document.getElementById("grid");
 let visual_table = document.getElementById("visual_grid");
 let motor_system = document.getElementById("motor_system");
 
-const motor_controls_columns = controls_table.children[0].children[0].childElementCount;
-const motors_number = visual_table.children[0].children[0].childElementCount;
-const motor_system_columns = motor_system.children[0].children[0].childElementCount;
+const motor_controls_columns = controls_table.children[0].children[0].childElementCount; //liczba kolumn pierwszej tabeli
+const motors_number = visual_table.children[0].children[0].childElementCount;    //liczba kolumn tabeli z pojedynczymi silnikami (również liczba samych silników)
+const motor_system_columns = motor_system.children[0].children[0].childElementCount; //liczba kolumn tabeli z symulacją
 
-let class_name;
-let is_enabled = true;
+let is_enabled = true;    // parametr służący do odblokowania/zablokowania kontroli nad silnikami z poziomu przycisków oraz klawiatury
 
-let line_rotation = [0, 0, 0];
-let position_rotations = [50, 50, 50];
-let joints_lengths;
+let line_rotation = [0, 0, 0];         // do przechowywania wartosci pozyskanych z subskrybowanego node'a (rotacji silników/ramion)
+let position_rotations = [50, 50, 50]; // do przechowywania wartosci suwaków
+let joints_lengths;                    // do przechowywania danych pozyskanych z serwisu
 
 // jedna funkcja do uzupelniania wszystkich tabel (zgodnie z regula DRY)
 function createTable(columns, table){
