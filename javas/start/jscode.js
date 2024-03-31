@@ -1,35 +1,19 @@
 //------------------------------------------------------------------------------------------
 // fragment kodu zwiazany z sama strona
 
-
-let controls_table = [
-    ["Motor", "Left Control", "Right Control", "Control Signal Value", "Position"],
-    ["Motor 1", "ctrl", "ctrl", "slider", "pos"],
-    ["Motor 2", "ctrl", "ctrl", "slider", "pos"],
-    ["Motor 3", "ctrl", "ctrl", "slider", "pos"]
-]
-
-let visual_table = [
-    ["Motor 1", "Motor 2", "Motor 3"],
-    ["visual", "visual", "visual"],
-    ["joint", "joint", "joint"]
-]
-
 let buttons = [
     ["q", "e"],
     ["a", "d"],
     ["z", "c"]
 ]
 
-let motor_system = [
-    ["Motor System Visualization"],
-    ["button"],
-    ["system"]
-]
+let controls_table = document.getElementById("grid");
+let visual_table = document.getElementById("visual_grid");
+let motor_system = document.getElementById("motor_system");
 
-const motor_controls_columns = controls_table[0].length;
-const motors_number = visual_table[0].length;
-const motor_system_columns = motor_system[0].length;
+const motor_controls_columns = controls_table.children[0].children[0].childElementCount;
+const motors_number = visual_table.children[0].children[0].childElementCount;
+const motor_system_columns = motor_system.children[0].children[0].childElementCount;
 
 let class_name;
 let is_enabled = true;
@@ -38,45 +22,47 @@ let line_rotation = [0, 0, 0];
 let position_rotations = [50, 50, 50];
 let joints_lengths;
 
-// jedna funkcja do tworzenia wszystkich tabel (zgodnie z regula DRY)
-function createTable(tableID, columns, table_of_strings){
-    let table = document.getElementById(tableID);
+// jedna funkcja do uzupelniania wszystkich tabel (zgodnie z regula DRY)
+function createTable(columns, table){
 
     let table_rows = table.children[0].childElementCount;
     for(let i = 0; i < table_rows; i++){
-        
         let row = table.children[0].children[0];
         
         for(let j = 0; j < columns; j++){
-            let cell = document.createElement("td");
+            let cell = table.children[0].children[0].children[0];
+            let cell_content = table.rows[0].cells[0].textContent
 
-            // stworzenie komorek z przyciskami kontrolujacymi
-            if(table_of_strings[i][j] == "ctrl"){ 
+            // uzupelnienie komorek z przyciskami kontrolujacymi lewo/prawo
+            if(cell_content == "ctrl"){ 
                 let btn = document.createElement("button");
                 btn.textContent = buttons[i-1][j-1];
                 btn.addEventListener("click", function(){
                     // odczyt z przyciskow na stronie
                     findButtonOrKey(buttons[i-1][j-1]);
-                })
+                });
+                cell.textContent = "";
                 cell.appendChild(btn);
             }
             
-            // stworzenie komorek z suwakami
-            else if(table_of_strings[i][j] == "slider"){
+            // uzupelnienie komorek z suwakami
+            else if(cell_content == "slider"){
                 cell.style.fontSize = "11px";
                 let slider = document.createElement("input");
                 slider.type = "range";
                 slider.value = 50;
-                cell.append(slider, "\n", slider.value);
                 slider.addEventListener("input", function(){
                     cell.textContent = "";
                     cell.append(slider, "\n", slider.value);
                     position_rotations[i-1] = Number(slider.value);
                 })
+                cell.textContent = "";
+                cell.append(slider, "\n", slider.value);
             }
 
-            //stworzenie komorki z wizualizacja calego systemu
-            else if(table_of_strings[i][j] == "system"){
+            //uzupelnienie komorki z wizualizacja calego systemu
+            else if(cell_content == "system"){
+                cell.textContent = "";
                 for(let k = 0; k < motors_number; k++){
                     let dot = document.createElement("div");
                     dot.setAttribute("class", "dot");
@@ -85,7 +71,9 @@ function createTable(tableID, columns, table_of_strings){
                     line.setAttribute("class", "line");
                     line.style.transformOrigin = 'bottom center';
                     dot.append(line);
+                    // dolaczenie pierwszego nieruchomego silnika
                     if(k == 0)  {cell.append(dot);}
+                    // przylaczenie pozostałych silników do ramiona poprzedniego silnika
                     else{
                         let previous_dot = cell.querySelector('.dot');
                         while(previous_dot.querySelector('.dot') != null){
@@ -99,8 +87,8 @@ function createTable(tableID, columns, table_of_strings){
                 }
             }
             
-            //stworzenie komorki z przyciskiem zerujacym
-            else if(table_of_strings[i][j] == "button"){
+            //uzupelnienie komorki z przyciskiem zerujacym
+            else if(cell_content == "button"){
                 let btn = document.createElement("button");
                 btn.textContent = "Go to zero";
                 btn.addEventListener("click",function(){
@@ -115,30 +103,32 @@ function createTable(tableID, columns, table_of_strings){
                             // x - predkosc obracania zalezna od parametru sinusoidalnego
                             let x = parseInt(Math.sin(sin_parameter) * 80 + 13);
                             topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, direction * x);
-                            // im blizej 0* znajdzie sie ramie z tym wieksza czestotliwoscia bedzie regulowana jego predkosc obrotu (w celu trafienia 0)
+                            // im blizej 0* znajdzie sie ramie z tym wieksza czestotliwoscia bedzie regulowana jego predkosc obrotu i sprawdzana jego pozycja (w celu trafienia w 0)
                             await sleep((3*x)+5);
                         }
                         // wyzerowanie predkosci obrotu, po osiagnieciu kata 0*
                         topicPublisher(`/virtual_dc_motor_node/set_cs_${j}`, 0);
                     }
+                    // równoległe wywolanie metody asynchronicznej dla wszystkich części (jedna nie bedzie czekać na drugą)
                     for(let i = 0; i < motors_number; i++){
                         setMotorsToZero(i);
                     }
                 });
+                cell.textContent = "";
                 cell.append(btn);
             }
 
-            // stworzenie komorek z pojedynczymi silnikami
-            else if(table_of_strings[i][j] == "visual"){
+            // uzupelnienie komorek z pojedynczymi silnikami
+            else if(cell_content == "visual"){
                 let dot = document.createElement("div");
                 dot.setAttribute("class", "dot");
                 let line = document.createElement("div");
                 line.setAttribute("class", "line");
                 line.style.transformOrigin = 'bottom center';
                 dot.append(line);
+                cell.textContent = "";
                 cell.append(dot);
             }
-            else    {cell.textContent = table_of_strings[i][j];}
             row.append(cell);
         }
         table.append(row);
@@ -147,11 +137,11 @@ function createTable(tableID, columns, table_of_strings){
 }
 
 // stworzenie poszczegolnych tabel
-let grid = createTable("grid", motor_controls_columns, controls_table);
-let system_grid = createTable("motor_system", motor_system_columns, motor_system);
-let visual_grid = createTable("visual_grid", motors_number, visual_table);
+let grid = createTable(motor_controls_columns, controls_table);
+let system_grid = createTable(motor_system_columns, motor_system);
+let visual_grid = createTable(motors_number, visual_table);
 
-// ustawienie wartosci w "motor control" w zaleznosci od jego obecnego stanu
+// ustawienie wartosci w "motor control enabled/disabled" w zaleznosci od jego obecnego stanu
 document.getElementById("controlbtn").addEventListener("click", function(){
     var label = document.getElementById("controllbl");
     if(is_enabled){
@@ -207,22 +197,23 @@ ros.on('close', function() {
     console.log('Connection to websocket server closed.');
 });
 
-let position_column = controls_table[0].length - 1;
-
 function updateTableAndMotors(i, data){
     degrees = Number(data)*360/4096;
     line_rotation[i-1] = degrees;
 
+    // aktualizacja rotacji ramion w tabeli z pojedynczymi silnikami
     let dot = visual_grid.rows[1].cells[i-1].querySelector('.dot');
     let arm = dot.querySelector('.line');
     arm.style.transform = `rotate(${line_rotation[i-1]}deg)`;
 
     let system = system_grid.rows[2].cells[0]
+    // aktualizacja rotacji ramion w symulacji całego systemu
     for(let j = 0; j < motors_number; j++){
         system = system.querySelector('.dot');
         system.querySelector('.line').style.transform = `rotate(${line_rotation[j]}deg)`;
     }
-    grid.rows[i].cells[position_column].textContent = `${degrees.toFixed(2)}°`
+    // aktualizacja pozycji z tabeli pierwszej
+    grid.rows[i].cells[motor_controls_columns - 1].textContent = `${degrees.toFixed(2)}°`
 }
 
 // subskrybowanie danych z topica
@@ -266,13 +257,13 @@ function getServiceData(){
 
     jointsLengthsClient.callService(null, function(result) {
         joints_lengths = result.data;
-        // ustawienie dlugosci ramion w zaleznosci od danych z serwisu
+        // ustawienie dlugosci ramion w tabeli z pojedynczymi silnikami w zaleznosci od danych z serwisu
         for(let i = 0; i < joints_lengths.length; i++){
             visual_grid.rows[2].cells[i].textContent = `Length of the joint: ${joints_lengths[i]}`;
             let motor = visual_grid.rows[1].cells[i].querySelector('.dot').querySelector('.line');
             motor.style.height = `${joints_lengths[i]/2}px`;
         }
-        // ustawienie dlugosci ramion (oraz skorygowanie pozycji silnikow) w zaleznosci od danych z serwisu
+        // ustawienie dlugosci ramion w symulacji całego systemu (oraz skorygowanie pozycji silnikow) w zaleznosci od danych z serwisu
         let system = system_grid.rows[2].cells[0];
         for(let j = 0; j < motors_number; j++){
             system = system.querySelector('.dot');
